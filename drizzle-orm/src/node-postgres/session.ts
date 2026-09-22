@@ -188,14 +188,16 @@ export class NodePgSession<
 			? new NodePgSession(await this.client.connect(), this.dialect, this.schema, this.options)
 			: this;
 		const tx = new NodePgTransaction<TFullSchema, TSchema>(this.dialect, session, this.schema);
-		await tx.execute(sql`begin${config ? sql` ${tx.getTransactionConfigSQL(config)}` : undefined}`);
 		try {
-			const result = await transaction(tx);
-			await tx.execute(sql`commit`);
-			return result;
-		} catch (error) {
-			await tx.execute(sql`rollback`);
-			throw error;
+			await tx.execute(sql`begin${config ? sql` ${tx.getTransactionConfigSQL(config)}` : undefined}`);
+			try {
+				const result = await transaction(tx);
+				await tx.execute(sql`commit`);
+				return result;
+			} catch (error) {
+				await tx.execute(sql`rollback`);
+				throw error;
+			}
 		} finally {
 			if (this.client instanceof Pool) { // eslint-disable-line no-instanceof/no-instanceof
 				(session.client as PoolClient).release();
